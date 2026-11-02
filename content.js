@@ -1,46 +1,45 @@
-console.log("YapinPlus loaded successfully! 🚀");
+console.log("YapinPlus: Script started 🚀");
 
-// Configuration par défaut de l'extension
-const DEFAULT_SETTINGS = {
-    btnText: "YapinPlus",
-    btnIcon: "⭐",
-    useGradient: true,
-    customColor: "#5865F2"
-};
-
-// Charger les paramètres sauvegardés ou utiliser les défauts
+// Charger les paramètres ou utiliser les valeurs par défaut
 async function loadSettings() {
     return new Promise((resolve) => {
-        chrome.storage.sync.get(DEFAULT_SETTINGS, (items) => {
-            resolve(items);
-        });
+        chrome.storage.sync.get({
+            btnText: "YapinPlus",
+            btnIcon: "⭐",
+            useGradient: true,
+            customColor: "#5865F2"
+        }, (items) => resolve(items));
     });
 }
 
-// Injecter le bouton et les panneaux dans l'interface
-async function initYapinPlus() {
+async function injectButton() {
+    // Empêcher les doublons
     if (document.getElementById("yapin-plus-container")) return;
 
-    const topBarRight = document.querySelector('div[class*="toolbar"]') || 
+    // Chercher la zone de la barre du haut de manière plus large
+    const topBarRight = document.querySelector('nav') || 
                         document.querySelector('header') || 
+                        document.querySelector('div[class*="toolbar"]') ||
                         document.querySelector('input[placeholder*="Search"]')?.parentElement?.parentElement;
 
-    if (!topBarRight) return;
+    if (!topBarRight) {
+        return; // Réessayera au prochain événement du MutationObserver
+    }
 
     let settings = await loadSettings();
 
-    // Conteneur principal pour le bouton et ses menus
+    // Conteneur principal
     const container = document.createElement("div");
     container.id = "yapin-plus-container";
     container.style.cssText = `
         position: relative;
         display: flex;
         align-items: center;
-        margin-right: 10px;
-        font-family: inherit;
+        margin-right: 12px;
+        z-index: 9999;
     `;
 
-    // Création du bouton principal
+    // Création du bouton
     const menuBtn = document.createElement("button");
     menuBtn.id = "yapin-plus-menu-btn";
     
@@ -68,14 +67,10 @@ async function initYapinPlus() {
         font-weight: 600;
         cursor: pointer;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        transition: transform 0.1s ease;
     `;
     updateButtonStyle();
 
-    menuBtn.onmousedown = () => menuBtn.style.transform = "scale(0.96)";
-    menuBtn.onmouseup = () => menuBtn.style.transform = "scale(1)";
-
-    // Animation CSS pour le dégradé arc-en-ciel
+    // Styles CSS injectés (Animation + Menu)
     if (!document.getElementById("yapin-plus-styles")) {
         const styleSheet = document.createElement("style");
         styleSheet.id = "yapin-plus-styles";
@@ -98,7 +93,7 @@ async function initYapinPlus() {
                 display: none;
                 flex-direction: column;
                 gap: 10px;
-                z-index: 9999;
+                z-index: 10000;
                 font-size: 13px;
                 border: 1px solid #40444b;
             }
@@ -115,12 +110,11 @@ async function initYapinPlus() {
         document.head.appendChild(styleSheet);
     }
 
-    // Création du Menu déroulant (Customisation & Debug)
+    // Menu déroulant
     const dropdown = document.createElement("div");
     dropdown.className = "yp-dropdown-menu";
     dropdown.innerHTML = `
         <h4>⚙️ YapinPlus Settings</h4>
-        
         <label>Text: <input type="text" id="yp-set-text" value="${settings.btnText}"></label>
         <label>Icon: <input type="text" id="yp-set-icon" value="${settings.btnIcon}"></label>
         <label>Rainbow Gradient: <input type="checkbox" id="yp-set-gradient" ${settings.useGradient ? "checked" : ""}></label>
@@ -132,19 +126,17 @@ async function initYapinPlus() {
         <div class="yp-debug-box" id="yp-debug-info">
             URL: ${window.location.href}<br>
             Status: Active<br>
-            UserAgent: ${navigator.userAgent.slice(0, 30)}...
+            Loaded: ${new Date().toLocaleTimeString()}
         </div>
 
         <button class="yp-action-btn yp-reset-btn" id="yp-reset-btn">Reset Defaults</button>
     `;
 
-    // Ouverture / Fermeture du menu au clic sur le bouton principal
     menuBtn.onclick = (e) => {
         e.stopPropagation();
         dropdown.classList.toggle("open");
     };
 
-    // Fermer le menu si on clique en dehors
     document.addEventListener("click", (e) => {
         if (!container.contains(e.target)) {
             dropdown.classList.remove("open");
@@ -154,7 +146,7 @@ async function initYapinPlus() {
     container.appendChild(menuBtn);
     container.appendChild(dropdown);
 
-    // Insertion dans la page
+    // Insertion ciblée au début de la barre supérieure ou près de la recherche
     const searchInput = document.querySelector('input[placeholder*="Search"]');
     if (searchInput && searchInput.parentElement) {
         searchInput.parentElement.before(container);
@@ -162,8 +154,7 @@ async function initYapinPlus() {
         topBarRight.prepend(container);
     }
 
-    // --- LOGIQUE DE SAUVEGARDE AUTOMATIQUE & BOUTONS ---
-    
+    // Gestion des inputs et sauvegarde automatique
     const txtInput = dropdown.querySelector("#yp-set-text");
     const iconInput = dropdown.querySelector("#yp-set-icon");
     const gradCheckbox = dropdown.querySelector("#yp-set-gradient");
@@ -172,7 +163,6 @@ async function initYapinPlus() {
     const resetBtn = dropdown.querySelector("#yp-reset-btn");
     const debugInfo = dropdown.querySelector("#yp-debug-info");
 
-    // Fonction de sauvegarde synchrone/persistante
     function saveCurrentSettings() {
         settings.btnText = txtInput.value || "YapinPlus";
         settings.btnIcon = iconInput.value || "⭐";
@@ -181,46 +171,49 @@ async function initYapinPlus() {
 
         chrome.storage.sync.set(settings, () => {
             updateButtonStyle();
-            debugInfo.innerHTML += `<br>[${new Date().toLocaleTimeString()}] Settings saved!`;
+            debugInfo.innerHTML += `<br>Saved at ${new Date().toLocaleTimeString()}`;
             debugInfo.scrollTop = debugInfo.scrollHeight;
         });
     }
 
-    // Sauvegarde automatique lors des modifications des inputs
     txtInput.addEventListener("input", saveCurrentSettings);
     iconInput.addEventListener("input", saveCurrentSettings);
     gradCheckbox.addEventListener("change", saveCurrentSettings);
     colorPicker.addEventListener("input", saveCurrentSettings);
 
-    // Bouton de sauvegarde explicite
     saveBtn.onclick = () => {
         saveCurrentSettings();
         alert("Settings saved successfully!");
     };
 
-    // Bouton Reset (Remise à zéro)
     resetBtn.onclick = () => {
-        if (confirm("Are you sure you want to reset settings to default?")) {
-            chrome.storage.sync.set(DEFAULT_SETTINGS, () => {
-                settings = { ...DEFAULT_SETTINGS };
+        if (confirm("Reset settings to default?")) {
+            const defaults = { btnText: "YapinPlus", btnIcon: "⭐", useGradient: true, customColor: "#5865F2" };
+            chrome.storage.sync.set(defaults, () => {
+                settings = defaults;
                 txtInput.value = settings.btnText;
                 iconInput.value = settings.btnIcon;
                 gradCheckbox.checked = settings.useGradient;
                 colorPicker.value = settings.customColor;
                 updateButtonStyle();
-                alert("Settings have been reset.");
+                alert("Reset complete.");
             });
         }
     };
 }
 
-// Observer pour maintenir le bouton même lors de la navigation interne (SPA)
+// Utilisation d'un MutationObserver puissant pour réagir si le site recharge ses éléments (SPA)
 const observer = new MutationObserver(() => {
-    initYapinPlus();
+    if (!document.getElementById("yapin-plus-container")) {
+        injectButton();
+    }
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
 
-// Lancement initial
-window.addEventListener("DOMContentLoaded", initYapinPlus);
-setTimeout(initYapinPlus, 1500); // Sécurité supplémentaire au chargement complet
+// Lancement direct et sécurisé
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", injectButton);
+} else {
+    injectButton();
+}

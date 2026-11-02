@@ -1,6 +1,5 @@
 console.log("YapinPlus: Script started 🚀");
 
-// Charger les paramètres ou utiliser les valeurs par défaut
 async function loadSettings() {
     return new Promise((resolve) => {
         chrome.storage.sync.get({
@@ -13,33 +12,24 @@ async function loadSettings() {
 }
 
 async function injectButton() {
-    // Empêcher les doublons
+    // Évite les doublons
     if (document.getElementById("yapin-plus-container")) return;
-
-    // Chercher la zone de la barre du haut de manière plus large
-    const topBarRight = document.querySelector('nav') || 
-                        document.querySelector('header') || 
-                        document.querySelector('div[class*="toolbar"]') ||
-                        document.querySelector('input[placeholder*="Search"]')?.parentElement?.parentElement;
-
-    if (!topBarRight) {
-        return; // Réessayera au prochain événement du MutationObserver
-    }
 
     let settings = await loadSettings();
 
-    // Conteneur principal
+    // Conteneur principal de l'extension
     const container = document.createElement("div");
     container.id = "yapin-plus-container";
     container.style.cssText = `
         position: relative;
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        margin-right: 12px;
-        z-index: 9999;
+        margin-left: 8px;
+        margin-right: 8px;
+        z-index: 99999;
     `;
 
-    // Création du bouton
+    // Le bouton principal
     const menuBtn = document.createElement("button");
     menuBtn.id = "yapin-plus-menu-btn";
     
@@ -66,11 +56,11 @@ async function injectButton() {
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     `;
     updateButtonStyle();
 
-    // Styles CSS injectés (Animation + Menu)
+    // Styles CSS pour le menu et l'animation
     if (!document.getElementById("yapin-plus-styles")) {
         const styleSheet = document.createElement("style");
         styleSheet.id = "yapin-plus-styles";
@@ -82,18 +72,18 @@ async function injectButton() {
             }
             .yp-dropdown-menu {
                 position: absolute;
-                top: 40px;
+                top: 42px;
                 right: 0;
                 width: 260px;
                 background-color: #2f3136;
                 color: #dcddde;
                 border-radius: 8px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.5);
                 padding: 12px;
                 display: none;
                 flex-direction: column;
                 gap: 10px;
-                z-index: 10000;
+                z-index: 100000;
                 font-size: 13px;
                 border: 1px solid #40444b;
             }
@@ -110,7 +100,7 @@ async function injectButton() {
         document.head.appendChild(styleSheet);
     }
 
-    // Menu déroulant
+    // Le menu déroulant de configuration
     const dropdown = document.createElement("div");
     dropdown.className = "yp-dropdown-menu";
     dropdown.innerHTML = `
@@ -146,15 +136,24 @@ async function injectButton() {
     container.appendChild(menuBtn);
     container.appendChild(dropdown);
 
-    // Insertion ciblée au début de la barre supérieure ou près de la recherche
-    const searchInput = document.querySelector('input[placeholder*="Search"]');
-    if (searchInput && searchInput.parentElement) {
-        searchInput.parentElement.before(container);
+    // Recherche de la barre du haut (en haut à droite près des icônes de recherche/profil)
+    // On cible les éléments typiques d'une barre de navigation Discord-like
+    const targetArea = document.querySelector('div[class*="toolbar"]') || 
+                       document.querySelector('header') || 
+                       document.querySelector('input[placeholder*="Search"]')?.closest('div') ||
+                       document.querySelector('div[class*="children"]');
+
+    if (targetArea) {
+        targetArea.appendChild(container);
     } else {
-        topBarRight.prepend(container);
+        // Solution de secours ultime : s'accrocher en haut à droite de l'écran en position fixe si la barre n'est pas trouvée
+        container.style.position = "fixed";
+        container.style.top = "10px";
+        container.style.right = "20px";
+        document.body.appendChild(container);
     }
 
-    // Gestion des inputs et sauvegarde automatique
+    // Sauvegarde automatique et gestion des inputs
     const txtInput = dropdown.querySelector("#yp-set-text");
     const iconInput = dropdown.querySelector("#yp-set-icon");
     const gradCheckbox = dropdown.querySelector("#yp-set-gradient");
@@ -202,7 +201,7 @@ async function injectButton() {
     };
 }
 
-// Utilisation d'un MutationObserver puissant pour réagir si le site recharge ses éléments (SPA)
+// Observer pour relancer si l'interface se recharge
 const observer = new MutationObserver(() => {
     if (!document.getElementById("yapin-plus-container")) {
         injectButton();
@@ -211,9 +210,9 @@ const observer = new MutationObserver(() => {
 
 observer.observe(document.body, { childList: true, subtree: true });
 
-// Lancement direct et sécurisé
+// Lancement
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", injectButton);
 } else {
-    injectButton();
+    setTimeout(injectButton, 1000);
 }

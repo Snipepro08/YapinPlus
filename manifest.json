@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "YapinPlus",
+  "version": "1.0",
+  "description": "Custom extension and tools for Yapin.gg",
+  "icons": {
+    "128": "icon.png"
+  },
+  "action": {
+    "default_title": "YapinPlus"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.yapin.gg/*",
+        "https://yapin.gg/*"
+      ],
+      "css": ["styles.css"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

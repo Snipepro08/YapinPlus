@@ -3,9 +3,6 @@
   "name": "YapinPlus",
   "version": "1.0",
   "description": "Custom extension and tools for Yapin.gg",
-  "icons": {
-    "128": "icon.png"
-  },
   "action": {
     "default_title": "YapinPlus"
   },
@@ -13,9 +10,10 @@
     {
       "matches": [
         "https://www.yapin.gg/*",
-        "https://yapin.gg/*"
+        "https://yapin.gg/*",
+        "https://www.yapper.website/*",
+        "https://yapper.website/*"
       ],
-      "css": ["styles.css"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
